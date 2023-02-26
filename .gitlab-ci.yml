@@ -1,0 +1,78 @@
+before_script:
+  - docker info
+  - docker-compose down
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  DOCKER_DRIVER: overlay
+  SPRING_PROFILES_ACTIVE: gitlab-ci
+stages:
+  - pre
+  - build
+  - deploy
+build:pre:
+  stage: pre
+  script:
+    - docker image prune --all -f
+    - aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/p2e3u7x0
+    -  docker system prune -a -f
+build:mvndockerhost:
+  stage: build
+  script:
+    - cd angular_frontend_return_order
+    - npm install @angular/cli
+    - ng build
+    - docker build -t angular-frontend:latest .
+    - docker tag angular-frontend:latest aws.demo.url/ret_ord_cicd:angular-frontend
+    - docker push aws.demo.url/ret_ord_cicd:angular-frontend
+    - docker rmi aws.demo.url/ret_ord_cicd:angular-frontend
+    - cd ..
+    - echo "FINISHED BUILDING ANGULAR FRONTEND"
+    - mvn -f apigateway/ package -Dmaven.test.skip=true -Dmaven.site.skip=true -Dmaven.javadoc.skip=true
+    - cd apigateway
+    - docker build -t api-gateway:latest .
+    - docker tag api-gateway:latest aws.demo.url/ret_ord_cicd:api-gateway
+    - docker push aws.demo.url/ret_ord_cicd:api-gateway
+    - docker rmi aws.demo.url/ret_ord_cicd:api-gateway
+    - cd ..
+    - echo "FINISHED API GATEWAY"
+
+    - mvn -f authentication-microservice/ clean install -Dmaven.test.skip=true -Dmaven.site.skip=true -Dmaven.javadoc.skip=true
+    - cd authentication-microservice
+    - docker build -t authentication:latest .
+    - docker tag authentication:latest aws.demo.url/ret_ord_cicd:authentication
+    - docker push aws.demo.url/ret_ord_cicd:authentication
+    - docker rmi aws.demo.url/ret_ord_cicd:authentication
+    - cd ..
+    - echo "FINISHED AUTHENTICATION MICROSERVICE"
+
+    - mvn -f component-processing/ clean install -Dmaven.test.skip=true -Dmaven.site.skip=true -Dmaven.javadoc.skip=true
+    - cd component-processing
+    - docker build -t componentprocess:latest .
+    - docker tag componentprocess:latest aws.demo.url/ret_ord_cicd:componentprocess
+    - docker push aws.demo.url/ret_ord_cicd:componentprocess
+    - docker rmi aws.demo.url/ret_ord_cicd:componentprocess
+    - cd ..
+    - echo "FINISHED COMPONENT PROCESSING MICROSERVICE"
+
+    - mvn -f package-delivery/ clean install -Dmaven.test.skip=true -Dmaven.site.skip=true -Dmaven.javadoc.skip=true
+    - cd package-delivery
+    - docker build -t packagingdelivery:latest .
+    - docker tag packagingdelivery:latest aws.demo.url/ret_ord_cicd:packagingdelivery
+    - docker push aws.demo.url/ret_ord_cicd:packagingdelivery
+    - docker rmi aws.demo.url/ret_ord_cicd:packagingdelivery
+    - cd ..
+    - echo "FINISHED PACKAGE DELIVERY MICROSERVICE"
+
+    - mvn -f service-registry/ clean install -Dmaven.test.skip=true -Dmaven.site.skip=true -Dmaven.javadoc.skip=true
+    - cd service-registry
+    - docker build -t service-registry:latest .
+    - docker tag service-registry:latest aws.demo.url/ret_ord_cicd:service-registry
+    - docker push aws.demo.url/ret_ord_cicd:service-registry
+    - docker rmi aws.demo.url/ret_ord_cicd:service-registry
+    - cd ..
+    - echo "FINISHED EUREKA SERVICE REGISTRY"
+build:deploy:  
+  stage: deploy
+  script:
+    - docker-compose up -d
+

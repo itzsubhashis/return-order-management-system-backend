@@ -1,0 +1,14 @@
+version: 0.2
+
+phases:
+  build:
+    commands:
+      -echo Building the rom
+      -mvn clean package
+  post_build:
+    commands:
+      -echo Build Done
+artifacts:
+  files:
+    -target/service-registry.jar
+  discard-paths: yes

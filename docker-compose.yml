@@ -1,0 +1,73 @@
+version: "3"
+  
+services:
+  angular-frontend:
+    image: angular-frontend
+    ports:
+      - "80:80"
+    networks:
+      - network
+
+  service-registry:
+    image: service-registry
+    ports:
+      - "8761:8761"
+    networks:
+      - network
+
+  api-gateway:
+    image: api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - JAVA_OPTS=
+        -DEUREKA_SERVER=http://service-registry:8761/eureka
+    networks:
+      - network
+    depends_on:
+      - service-registry
+      - authentication
+      - componentprocess
+      - packagingdelivery
+
+  authentication:
+    image: authentication
+    environment:
+      - JAVA_OPTS=
+        -DEUREKA_SERVER=http://service-registry:8761/eureka
+        -DAPI_SERVER=http://api-gateway:8080/
+    ports:
+      - "8000:8000"
+    depends_on:
+      - service-registry
+    networks:
+      - network
+
+  componentprocess:
+    image: componentprocess
+    environment:
+      - JAVA_OPTS=
+        -DEUREKA_SERVER=http://service-registry:8761/eureka
+        -DAPI_SERVER=http://api-gateway:8080/
+    ports:
+      - "8001:8001"
+    depends_on:
+      - service-registry
+    networks:
+      - network
+
+  packagingdelivery:
+    image: packagingdelivery
+    environment:
+      - JAVA_OPTS=
+        -DEUREKA_SERVER=http://service-registry:8761/eureka
+        -DAPI_SERVER=http://api-gateway:8080/
+    ports:
+      - "8002:8002"
+    depends_on:
+      - service-registry
+    networks:
+      - network
+
+networks:
+  network:
